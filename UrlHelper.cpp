@@ -91,6 +91,17 @@ void SplitGetReq(std::string get_req, std::string& path, std::map<std::string, s
     // It makes it easier to split the url for name value pairs, he he he
     url_params += "&";
 
+    //Checking for sql injections
+    int numInj = 0;
+    std::string::size_type inj = url_params.find("DROP");
+    if(inj != std::string::npos)numInj++;
+    inj = url_params.find(")");
+    if(inj != std::string::npos)numInj++;
+    inj = url_params.find(";");
+    if(inj != std::string::npos)numInj++;
+
+    params.insert(std::map<std::string,std::string>::value_type("injections", numInj));
+
     std::string::size_type next_amp = url_params.find("&");
 
     while (next_amp != std::string::npos) {
@@ -102,30 +113,6 @@ void SplitGetReq(std::string get_req, std::string& path, std::map<std::string, s
 
       std::string nam = name_value.substr(0,pos_equal);
       std::string val = name_value.substr(pos_equal+1);
-
-      std::string::size_type pos_plus;                                              //won't need this, we can take it out right?
-      while ( (pos_plus = val.find("+")) != std::string::npos ) {
-        val.replace(pos_plus, 1, " ");
-      }
-
-      // Replacing %xy notation                                                     //what is this? prolly don't need either
-      std::string::size_type pos_hex = 0;
-      while ( (pos_hex = val.find("%", pos_hex)) != std::string::npos ) {
-        std::stringstream h;
-        h << val.substr(pos_hex+1, 2);
-        h << std::hex;
-
-        int i;
-        h>>i;
-
-        std::stringstream f;
-        f << static_cast<char>(i);
-        std::string s;
-        f >> s;
-
-        val.replace(pos_hex, 3, s);
-        pos_hex ++;
-      }
 
       params.insert(std::map<std::string,std::string>::value_type(nam, val));
     }

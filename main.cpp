@@ -26,21 +26,23 @@ void Request_Handler(webserver::http_request* r) {
   std::string title;
   std::string body;
 
+  //Check if there were sql injections
+  if(stoi(params_[]("injections"))!=0){
+        title = "Unable to process request.";
+        body = "Cookies and request parameters may not contain 'DROP', ')', or ';'. Please try again." + bal;
+  }
+  //register a player account
   if(r->path == "www.blue.net/register"){
         stmt->execute("INSERT INTO bank.accounts(user, pass, balance) VALUES (" + username r->params_[]("user") + ", " + password r->params_[]("pass") + ", 0)");
         title = "success";
         body = "Your account was successfully created";
-  }else if (r->path == "www.blue.net/login"){
+  }
+  //login and set a cookie
+  else if (r->path == "www.blue.net/login"){
         bool validUserPass = false;
         res = stmt->executeQuery("SELECT * FROM bank.accounts WHERE user = '"+r->params_[]("user")) + "')";
-        while(res->next()){
-            if(res->getString("user")==r->params_[]("user")){
-                if(res->getString("pass")==r->params_[]("pass")){
-                    validUserPass = true;
-                }
-                break;
-            }
-        }
+        if(res->getString("pass")==r->params_[]("pass")) validUserPass = true;
+
         if(validUserPass){
             int sessionID = rand();
             stmt->execute("INSERT INTO bank.cookies(user, session) VALUES (" + username r->params_[]("user") + ", " + sessionID + ")");
@@ -51,51 +53,85 @@ void Request_Handler(webserver::http_request* r) {
             title = "invalid username/password";
             body = "the username or password given does match our records";
         }
-  }else if (r->path == "www.blue.net/manage"){
-        bool loggedIn = false;
+  }
+  //manage account
+  else if (r->path == "www.blue.net/manage"){
         //TODO: Get the cookie as a string to compare it
         string cookie;
-        res = stmt->executeQuery("SELECT * FROM bank.cookies WHERE session="+stoi(cookie)+")");
-        while(res->next()){
-            if(res->getString("session")==stoi(cookie)){
-                loggedIn = true;
-                break;
-            }
-        }
-        string username = res->getString("user");
-        res = stmt->executeQuery("SELECT * FROM bank.accounts WHERE session="+username+")");
-
-        if(!loggedIn){
-            title = "NO";
-            body = "You're not logged in";
+        int numInj = 0;
+        std::string::size_type inject = cookie.find(")");
+        if(inject != std::string::npos)numInj++;
+        inject = cookie.find(";");
+        if(inject != std::string::npos)numInj++;
+        inject = cookie.find("DROP");
+        if(inject != std::string::npos)numInj++;
+        if(numInj>0){
+            title = "Unable to process request.";
+            body = "Cookies and request parameters may not contain 'DROP', ')', or ';'. Please try again." + bal;
         }else{
-            string action = r->params_[]("action");
-            if(action == "deposit"){
-                int bal = res->getString("balance");
-                bal += r->params_[]("amount");
-            }else if (action == "withdraw"){
-                int bal = res->getString("balance");
-                bal -= r->params_[]("amount");
-            }else if (action == "balance"){
-                int bal = res->getString("balance");
+            bool loggedIn = false;
+            res = stmt->executeQuery("SELECT * FROM bank.cookies WHERE session="+cookie+")");
+            while(res->next()){
+                if(res->getString("session")==stoi(cookie)){
+                    loggedIn = true;
+                    break;
+                }
+            }
+            string username = res->getString("user");
+            res = stmt->executeQuery("SELECT * FROM bank.accounts WHERE session="+username+")");
 
-            }else if (action == "close"){
-
+            if(!loggedIn){
+                title = "Invalid Request";
+                body = "You're either not logged in or your request featured invalid input";
+            }else{
+                string action = r->params_[]("action");
+                if(action == "deposit"){
+                    int bal = res->getString("balance");
+                    bal += r->params_[]("amount");
+                    title = "deposit successful";
+                    stmt->executeQuery("UPDATE bank.accounts SET balance="+bal+" WHERE user=" + username+")");
+                    body = "your balance is now $" + bal;
+                }else if (action == "withdraw"){
+                    int bal = res->getString("balance");
+                    bal -= r->params_[]("amount");
+                    title = "withdrawal successful";
+                    stmt->executeQuery("UPDATE bank.accounts SET balance="+bal+" WHERE user=" + username+")");
+                    body = "your balance is now $" + bal;
+                }else if (action == "balance"){
+                    int bal = res->getString("balance");
+                    title = "Balance Check";
+                    body = "your balance is $" + bal;
+                }else if (action == "close"){
+                    title = "Account Closed";
+                    body = "your account has been deleted" + bal;
+                    stmt->executeQuery("DELETE FROM bank.account WHERE user=" + username + ")");
+                }
             }
         }
-
-  }else if (r->path == "www.blue.net/logout"){
+  }
+  //Logout of account
+  else if (r->path == "www.blue.net/logout"){
         //TODO: need to find the cookie
         string cookie;
-        res = stmt->executeQuery("SELECT * FROM bank.cookies WHERE session="+stoi(cookie)+")");
-        while(res->next()){
-            if(res->getString("session")==stoi(cookie)){
-                loggedIn = true;
-                break;
-            }
+        string cookie;
+        int numInj = 0;
+        std::string::size_type inject = cookie.find(")");
+        if(inject != std::string::npos)numInj++;
+        inject = cookie.find(";");
+        if(inject != std::string::npos)numInj++;
+        inject = cookie.find("DROP");
+        if(inject != std::string::npos)numInj++;
+        if(numInj>0){
+            title = "Unable to process request.";
+            body = "Cookies and request parameters may not contain 'DROP', ')', or ';'. Please try again." + bal;
+        }else{
+            title = "Session Closed";
+            body = "your cookie is no longer active" + bal;
+            stmt->executeQuery("DELETE FROM bank.cookies WHERE session=" + cookie + ")");
         }
-        //Destroy the cookie
-  }else {
+  }
+  //unidentified request
+  else {
     r->status_ = "404 Not Found";
     title      = "Wrong URL";
     body       = "<h1>Wrong URL</h1>";
@@ -118,15 +154,6 @@ int main() {
 
     srand(time(NULL));
 
-    /*MYSQL *conn;
-	MYSQL_RES *res;
-	MYSQL_ROW row;
-	char *server = "localhost";
-	char *user = "node";
-	char *password = "nodeedon";
-	char *database = "bank";
-	conn = mysql_init(NULL);*/
-
 	//Connecting to the database
 	if(!mysql_real_connect(conn, server, user, password, database, 0, NULL, 0))
 	{
@@ -140,8 +167,7 @@ int main() {
     // close connection
     delete stmt;
     delete con;
-	//mysql_free_result(res);
-	//mysql_close(conn);
+    delete res;
 
 	return 0;
 }
