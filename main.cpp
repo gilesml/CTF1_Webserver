@@ -1,5 +1,23 @@
+// some code taken from http://www.cplusplus.com/forum/general/71099/ for database stuff
+
+#include <string.h>
+#include <mysql.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <pthread.h>
+#include <netdb.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include "webserver.h"
 #include "Socket.h"
+
+sql::mysql::MySQL_Driver *driver;
+sql::Connection *con;
+sql::Statement *stmt;
+sql::ResultSet  *res;
 
 void Request_Handler(webserver::http_request* r) {
   Socket s = *(r->s_);
@@ -7,28 +25,26 @@ void Request_Handler(webserver::http_request* r) {
   //do we want our response in the form of a webpage? Is that even what this does?
   std::string title;
   std::string body;
-  std::string bgcolor="#ffffff";
-  std::string links =
-      "<p><a href='/red'>red</a> "
-      "<br><a href='/blue'>blue</a> "
-      "<br><a href='/form'>form</a> "
-      "<br><a href='/auth'>authentication example</a> [use <b>rene</b> as username and <b>secretGarden</b> as password"
-      "<br><a href='/header'>show some HTTP header details</a> "
-      ;
-/*
-  if(r->path_ == "/") {
-    title = "Web Server Home";
-    body  = "<h1>Welcome to Rene's Web Server</h1>"
-            "I wonder what you're going to click"  + links;
-  }
-*/
+
   if(r->path == "www.blue.net/register"){
-        //Create a new user with the username r->params_[]("user") and the password r->params_[]("pass")
+        stmt->execute("INSERT INTO bank.accounts(user, pass, balance) VALUES (" + username r->params_[]("user") + ", " + password r->params_[]("pass") + ", 0)");
+        title = "success";
+        body = "Your account was successfully created";
   }else if (r->path == "www.blue.net/login"){
         bool validUserPass = false;
-        //Authenticate the username r->params_[]("user") and the password r->params_[]("pass")
+        res = stmt->executeQuery("SELECT * FROM bank.accounts WHERE user = '"+r->params_[]("user")) + "')";
+        while(res->next()){
+            if(res->getString("user")==r->params_[]("user")){
+                if(res->getString("pass")==r->params_[]("pass")){
+                    validUserPass = true;
+                }
+                break;
+            }
+        }
         if(validUserPass){
-            //set a cookie for this user
+            int sessionID = rand();
+            stmt->execute("INSERT INTO bank.cookies(user, session) VALUES (" + username r->params_[]("user") + ", " + sessionID + ")");
+            //TODO: set a cookie for this user
             title = "login successful";
             body = "Your login attempt was successful";
         }else{
@@ -37,17 +53,31 @@ void Request_Handler(webserver::http_request* r) {
         }
   }else if (r->path == "www.blue.net/manage"){
         bool loggedIn = false;
-        //Check if they have a cookie
+        //TODO: Get the cookie as a string to compare it
+        string cookie;
+        res = stmt->executeQuery("SELECT * FROM bank.cookies WHERE session="+stoi(cookie)+")");
+        while(res->next()){
+            if(res->getString("session")==stoi(cookie)){
+                loggedIn = true;
+                break;
+            }
+        }
+        string username = res->getString("user");
+        res = stmt->executeQuery("SELECT * FROM bank.accounts WHERE session="+username+")");
+
         if(!loggedIn){
             title = "NO";
             body = "You're not logged in";
         }else{
             string action = r->params_[]("action");
             if(action == "deposit"){
-
+                int bal = res->getString("balance");
+                bal += r->params_[]("amount");
             }else if (action == "withdraw"){
-
+                int bal = res->getString("balance");
+                bal -= r->params_[]("amount");
             }else if (action == "balance"){
+                int bal = res->getString("balance");
 
             }else if (action == "close"){
 
@@ -55,6 +85,15 @@ void Request_Handler(webserver::http_request* r) {
         }
 
   }else if (r->path == "www.blue.net/logout"){
+        //TODO: need to find the cookie
+        string cookie;
+        res = stmt->executeQuery("SELECT * FROM bank.cookies WHERE session="+stoi(cookie)+")");
+        while(res->next()){
+            if(res->getString("session")==stoi(cookie)){
+                loggedIn = true;
+                break;
+            }
+        }
         //Destroy the cookie
   }else {
     r->status_ = "404 Not Found";
@@ -71,5 +110,38 @@ void Request_Handler(webserver::http_request* r) {
 }
 
 int main() {
-  webserver(8080, Request_Handler);
+    driver = sql::mysql::get_mysql_driver_instance();
+    con = driver->connect("tcp://127.0.0.1:3306", "user", "password");
+    stmt = con->createStatement();
+    stmt->execute("USE bank");
+    stmt->execute("CREATE TABLE test(id INT, label CHAR(1))");
+
+    srand(time(NULL));
+
+    /*MYSQL *conn;
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+	char *server = "localhost";
+	char *user = "node";
+	char *password = "nodeedon";
+	char *database = "bank";
+	conn = mysql_init(NULL);*/
+
+	//Connecting to the database
+	if(!mysql_real_connect(conn, server, user, password, database, 0, NULL, 0))
+	{
+		fprintf(stderr, "%s\n", mysql_error(conn));
+		return -1;
+	}
+
+    //Running the web server
+    webserver(8080, Request_Handler);
+
+    // close connection
+    delete stmt;
+    delete con;
+	//mysql_free_result(res);
+	//mysql_close(conn);
+
+	return 0;
 }
