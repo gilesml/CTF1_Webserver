@@ -1,4 +1,4 @@
-/* 
+/*
    UrlHelper.cpp
 
    Copyright (C) 2002-2004 René Nyffenegger
@@ -39,7 +39,7 @@ bool RemoveProtocolFromUrl(std::string const& url, std::string& protocol, std::s
   std::string::size_type pos_colon = url.find(":");
 
   if (pos_colon == std::string::npos) {
-    rest = url;  
+    rest = url;
     return false;
   }
 
@@ -75,14 +75,16 @@ void SplitGetReq(std::string get_req, std::string& path, std::map<std::string, s
   // Remove potential Trailing HTTP/1.x
   if (get_req.size() > 7) {
     if (get_req.substr(get_req.size()-8, 7) == "HTTP/1.") {
-      get_req=get_req.substr(0, get_req.size()-9);
+      get_req=get_req.substr(0, get_req.size()-9); //9 to remove the space
     }
   }
 
+  // Finding where parameters start
   std::string::size_type qm = get_req.find("?");
   if (qm != std::string::npos) {
     std::string url_params = get_req.substr(qm+1);
 
+    // Pathname should be everything left before the parameters so set the reference to that
     path = get_req.substr(0, qm);
 
     // Appending a '&' so that there are as many '&' as name-value pairs.
@@ -101,12 +103,12 @@ void SplitGetReq(std::string get_req, std::string& path, std::map<std::string, s
       std::string nam = name_value.substr(0,pos_equal);
       std::string val = name_value.substr(pos_equal+1);
 
-      std::string::size_type pos_plus;
+      std::string::size_type pos_plus;                                              //won't need this, we can take it out right?
       while ( (pos_plus = val.find("+")) != std::string::npos ) {
         val.replace(pos_plus, 1, " ");
       }
 
-      // Replacing %xy notation
+      // Replacing %xy notation                                                     //what is this? prolly don't need either
       std::string::size_type pos_hex = 0;
       while ( (pos_hex = val.find("%", pos_hex)) != std::string::npos ) {
         std::stringstream h;
@@ -128,7 +130,7 @@ void SplitGetReq(std::string get_req, std::string& path, std::map<std::string, s
       params.insert(std::map<std::string,std::string>::value_type(nam, val));
     }
   }
-  else {
+  else { //this only happens if there are no parameters
     path = get_req;
   }
 }
@@ -139,7 +141,7 @@ void SplitUrl(std::string const& url, std::string& protocol, std::string& server
 
   if (protocol == "http") {
     std::string::size_type pos_slash = server.find("/");
-  
+
     if (pos_slash != std::string::npos) {
       Trace("slash found");
       path   = server.substr(pos_slash);

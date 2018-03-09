@@ -44,7 +44,7 @@ webserver::request_func webserver::request_func_=0;
 
 unsigned webserver::Request(void* ptr_s) {
   Socket s = *(reinterpret_cast<Socket*>(ptr_s));
-  
+
   std::string line = s.ReceiveLine();
   if (line.empty()) {
     return 1;
@@ -52,18 +52,23 @@ unsigned webserver::Request(void* ptr_s) {
 
   http_request req;
 
+  //is it get or post?
   if (line.find("GET") == 0) {
     req.method_="GET";
   }
   else if (line.find("POST") == 0) {
     req.method_="POST";
   }
+  else return 0;                                                        //need to handle better?
 
   std::string path;
   std::map<std::string, std::string> params;
 
+
+  // pos = 3 since it has to be either post or get
   size_t posStartPath = line.find_first_not_of(" ",3);
 
+  //in urlhelper
   SplitGetReq(line.substr(posStartPath), path, params);
 
   req.status_ = "202 OK";
@@ -77,7 +82,12 @@ unsigned webserver::Request(void* ptr_s) {
   static const std::string accept_encoding = "Accept-Encoding: "    ;
   static const std::string user_agent      = "User-Agent: "         ;
 
-  while(1) {
+  request_func_(&req);
+  s.SendLine(req.answer_);
+
+  /* I think we don't need any of this. Used to be on line 85 for reference, in place of request_func_.
+
+  while(1) { //this is if there are more lines to the request. Do we need this for our purposes? can probably remove...
     line=s.ReceiveLine();
 
     if (line.empty()) break;
@@ -111,7 +121,7 @@ unsigned webserver::Request(void* ptr_s) {
     }
   }
 
-  request_func_(&req);
+  request_func_(&req);                                                          //what's this?
 
   std::stringstream str_str;
   str_str << req.answer_.size();
@@ -120,7 +130,7 @@ unsigned webserver::Request(void* ptr_s) {
   time(&ltime);
   tm* gmt= gmtime(&ltime);
 
-  static std::string const serverName = "RenesWebserver (Windows)";
+  static std::string const serverName = "BlueBank (Windows)";                   //Changed the name
 
   char* asctime_remove_nl = asctime(gmt);
   asctime_remove_nl[24] = 0;
@@ -143,9 +153,10 @@ unsigned webserver::Request(void* ptr_s) {
   s.SendLine("Content-Length: " + str_str.str());
   s.SendLine("");
   s.SendLine(req.answer_);
+  */
 
   s.Close();
-  
+
 
   return 0;
 }
@@ -155,6 +166,7 @@ webserver::webserver(unsigned int port_to_listen, request_func r) {
 
   request_func_ = r;
 
+  //opens up a new server for each client that tries to access the server
   while (1) {
     Socket* ptr_s=in.Accept();
 

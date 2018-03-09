@@ -4,6 +4,7 @@
 void Request_Handler(webserver::http_request* r) {
   Socket s = *(r->s_);
 
+  //do we want our response in the form of a webpage? Is that even what this does?
   std::string title;
   std::string body;
   std::string bgcolor="#ffffff";
@@ -14,75 +15,52 @@ void Request_Handler(webserver::http_request* r) {
       "<br><a href='/auth'>authentication example</a> [use <b>rene</b> as username and <b>secretGarden</b> as password"
       "<br><a href='/header'>show some HTTP header details</a> "
       ;
-
+/*
   if(r->path_ == "/") {
-    title = "Web Server Example";
+    title = "Web Server Home";
     body  = "<h1>Welcome to Rene's Web Server</h1>"
             "I wonder what you're going to click"  + links;
   }
-  else if (r->path_ == "/red") {
-    bgcolor = "#ff4444";
-    title   = "You chose red";
-    body    = "<h1>Red</h1>" + links;
-  }
-  else if (r->path_ == "/blue") {
-    bgcolor = "#4444ff";
-    title   = "You chose blue";
-    body    = "<h1>Blue</h1>" + links;
-  }
-  else if (r->path_ == "/form") {
-    title   = "Fill a form";
+*/
+  if(r->path == "www.blue.net/register"){
+        //Create a new user with the username r->params_[]("user") and the password r->params_[]("pass")
+  }else if (r->path == "www.blue.net/login"){
+        bool validUserPass = false;
+        //Authenticate the username r->params_[]("user") and the password r->params_[]("pass")
+        if(validUserPass){
+            //set a cookie for this user
+            title = "login successful";
+            body = "Your login attempt was successful";
+        }else{
+            title = "invalid username/password";
+            body = "the username or password given does match our records";
+        }
+  }else if (r->path == "www.blue.net/manage"){
+        bool loggedIn = false;
+        //Check if they have a cookie
+        if(!loggedIn){
+            title = "NO";
+            body = "You're not logged in";
+        }else{
+            string action = r->params_[]("action");
+            if(action == "deposit"){
 
-    body    = "<h1>Fill a form</h1>";
-    body   += "<form action='/form'>"
-              "<table>"
-              "<tr><td>Field 1</td><td><input name=field_1></td></tr>"
-              "<tr><td>Field 2</td><td><input name=field_2></td></tr>"
-              "<tr><td>Field 3</td><td><input name=field_3></td></tr>"
-              "</table>"
-              "<input type=submit></form>";
+            }else if (action == "withdraw"){
 
+            }else if (action == "balance"){
 
-    for (std::map<std::string, std::string>::const_iterator i = r->params_.begin();
-         i != r->params_.end();
-         i++) {
+            }else if (action == "close"){
 
-      body += "<br>" + i->first + " = " + i->second;
-    }
+            }
+        }
 
-
-    body += "<hr>" + links;
-
-  }
-  else if (r->path_ == "/auth") {
-    if (r->authentication_given_) {
-      if (r->username_ == "rene" && r->password_ == "secretGarden") {
-         body = "<h1>Successfully authenticated</h1>" + links;
-      }
-      else {
-         body = "<h1>Wrong username or password</h1>" + links;
-         r->auth_realm_ = "Private Stuff";
-      }
-    }
-    else {
-      r->auth_realm_ = "Private Stuff";
-    }
-  }
-  else if (r->path_ == "/header") {
-    title   = "some HTTP header details";
-    body    = std::string ("<table>")                                   +
-              "<tr><td>Accept:</td><td>"          + r->accept_          + "</td></tr>" +
-              "<tr><td>Accept-Encoding:</td><td>" + r->accept_encoding_ + "</td></tr>" +
-              "<tr><td>Accept-Language:</td><td>" + r->accept_language_ + "</td></tr>" +
-              "<tr><td>User-Agent:</td><td>"      + r->user_agent_      + "</td></tr>" +
-              "</table>"                                                +
-              links;
-  }
-  else {
+  }else if (r->path == "www.blue.net/logout"){
+        //Destroy the cookie
+  }else {
     r->status_ = "404 Not Found";
     title      = "Wrong URL";
     body       = "<h1>Wrong URL</h1>";
-    body      += "Path is : &gt;" + r->path_ + "&lt;"; 
+    body      += "Path is : &gt;" + r->path_ + "&lt;";
   }
 
   r->answer_  = "<html><head><title>";
